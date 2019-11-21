@@ -1,7 +1,6 @@
 #include "textflag.h"
 
-
-TEXT ·Cas(SB),NOSPLIT,$0
+TEXT ·cas(SB),NOSPLIT,$0
 	MOVQ		ptr+0(FP), BP
 	MOVQ		old+8(FP), AX
 	MOVQ		new+16(FP), CX
