@@ -13,3 +13,33 @@ func TestCas(t *testing.T) {
 		t.Fatal("Cas shouldn't have swapped")
 	}
 }
+
+func TestRDCSS(t *testing.T) {
+	control := uint64(0)
+	data := uint64(0)
+	old := rdcss(&rdcssDescriptor{
+		a1: &control,
+		o1: 0,
+		a2: &data,
+		o2: 0,
+		n2: 1,
+	})
+	if old != 0 && data != 1 {
+		t.Fatal("RDCSS failed")
+	}
+}
+
+func TestRDCSSRead(t *testing.T) {
+	control := uint64(0)
+	data := uint64(0)
+	old := rdcss(&rdcssDescriptor{
+		a1: &control,
+		o1: 0,
+		a2: &data,
+		o2: 0,
+		n2: 1,
+	})
+	if old != 0 && data != 1 {
+		t.Fatal("RDCSSRead failed")
+	}
+}

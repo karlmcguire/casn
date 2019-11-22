@@ -1,6 +1,8 @@
 package casn
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 type casnStatus byte
 
@@ -44,7 +46,7 @@ func rdcss(d *rdcssDescriptor) uint64 {
 		}
 	}
 	if r == d.o2 {
-		complete(r)
+		complete(d.ptr())
 	}
 	return r
 }
@@ -59,8 +61,7 @@ func rdcssRead(d *rdcssDescriptor) uint64 {
 
 func complete(ptr uint64) {
 	d := getRDCSSDescriptor(ptr)
-	v := *(d.a1)
-	if v == d.o1 {
+	if *d.a1 == d.o1 {
 		cas(d.a2, ptr, d.n2)
 	} else {
 		cas(d.a2, ptr, d.o2)
