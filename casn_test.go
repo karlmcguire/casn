@@ -1,15 +1,16 @@
 package casn
 
 import (
+	"fmt"
 	"testing"
 )
 
 func TestCas(t *testing.T) {
 	num := uint64(0)
-	if old, swapped := cas(&num, 0, 1); old != 0 || !swapped {
+	if old := cas(&num, 0, 1); old != 0 {
 		t.Fatal("Cas didn't swap")
 	}
-	if old, swapped := cas(&num, 2, 0); old != 1 || swapped {
+	if old := cas(&num, 2, 0); old != 1 {
 		t.Fatal("Cas shouldn't have swapped")
 	}
 }
@@ -27,6 +28,39 @@ func TestRDCSS(t *testing.T) {
 	if old != 0 && data != 1 {
 		t.Fatal("RDCSS failed")
 	}
+}
+
+func BenchmarkRDCSS(b *testing.B) {
+	data := []uint64{0, 0}
+	fmt.Printf("%v\n", &data[0])
+	fmt.Printf("%v\n", &data[1])
+	fmt.Println()
+	b.SetBytes(1)
+	for n := uint64(0); n < uint64(b.N); n++ {
+		rdcss(&rdcssDescriptor{
+			a1: &data[0],
+			o1: 0,
+			a2: &data[1],
+			o2: n + 0,
+			n2: n + 1,
+		})
+	}
+}
+
+func BenchmarkRDCSSParallel(b *testing.B) {
+	data := []uint64{0, 0}
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for n := uint64(0); pb.Next(); n++ {
+			rdcss(&rdcssDescriptor{
+				a1: &data[0],
+				o1: 0,
+				a2: &data[1],
+				o2: n + 0,
+				n2: n + 1,
+			})
+		}
+	})
 }
 
 func TestCASN(t *testing.T) {

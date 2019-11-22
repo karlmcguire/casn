@@ -1,6 +1,7 @@
 package casn
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -22,7 +23,7 @@ const (
 
 type casnDescriptor struct {
 	status  uint64
-	entries []Update
+	updates []Update
 }
 
 func (d *casnDescriptor) ptr() uint64 {
@@ -40,14 +41,13 @@ func isCASNDescriptor(ptr uint64) bool {
 func casn(cd *casnDescriptor) bool {
 	if cd.status == undecided {
 		status := succeeded
-		for i := 0; i < len(cd.entries) && status == succeeded; i++ {
+		for i := 0; i < len(cd.updates) && status == succeeded; i++ {
 		retry:
-			entry := cd.entries[i]
 			val := rdcss(&rdcssDescriptor{
 				a1: &cd.status,
 				o1: undecided,
-				a2: entry.Address,
-				o2: entry.Old,
+				a2: cd.updates[i].Address,
+				o2: cd.updates[i].Old,
 				n2: cd.ptr(),
 			})
 			if isCASNDescriptor(val) {
@@ -55,21 +55,21 @@ func casn(cd *casnDescriptor) bool {
 					casn(getCASNDescriptor(val))
 					goto retry
 				}
-			} else if val != entry.Old {
+			} else if val != cd.updates[i].Old {
 				status = failed
 			}
 		}
 		cas(&cd.status, undecided, status)
 	}
 	success := cd.status == succeeded
-	for i := 0; i < len(cd.entries); i++ {
-		var new uint64
+	for i := 0; i < len(cd.updates); i++ {
+		new := uint64(0)
 		if success {
-			new = cd.entries[i].New
+			new = cd.updates[i].New
 		} else {
-			new = cd.entries[i].Old
+			new = cd.updates[i].Old
 		}
-		cas(cd.entries[i].Address, cd.ptr(), new)
+		cas(cd.updates[i].Address, cd.ptr(), new)
 	}
 	return success
 }
@@ -97,7 +97,7 @@ func isRDCSSDescriptor(ptr uint64) bool {
 func rdcss(d *rdcssDescriptor) uint64 {
 	r := d.ptr()
 	for isRDCSSDescriptor(r) {
-		r, _ = cas(d.a2, d.o2, r)
+		r = cas(d.a2, d.o2, r)
 		if isRDCSSDescriptor(r) {
 			complete(r)
 		}
@@ -110,6 +110,11 @@ func rdcss(d *rdcssDescriptor) uint64 {
 
 func complete(ptr uint64) {
 	d := getRDCSSDescriptor(ptr)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("%064b %v\n", ptr, d)
+		}
+	}()
 	if *d.a1 == d.o1 {
 		cas(d.a2, ptr, d.n2)
 	} else {
@@ -117,4 +122,4 @@ func complete(ptr uint64) {
 	}
 }
 
-func cas(ptr *uint64, old, new uint64) (uint64, bool)
+func cas(ptr *uint64, old, new uint64) uint64

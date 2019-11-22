@@ -7,5 +7,4 @@ TEXT ·cas(SB),NOSPLIT,$0
 	LOCK
 	CMPXCHGQ 	CX, (BP)
 	MOVQ 		AX, ret+24(FP)
-	SETEQ		ret+32(FP)
 	RET
