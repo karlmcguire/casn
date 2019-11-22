@@ -15,6 +15,20 @@ func TestCas(t *testing.T) {
 	}
 }
 
+func TestGetRDCSSDescriptor(t *testing.T) {
+	data := []uint64{0, 0}
+	d := &rdcssDescriptor{
+		a1: &data[0],
+		o1: 0,
+		a2: &data[1],
+		o2: 0,
+		n2: 1,
+	}
+	if d != getRDCSSDescriptor(d.ptr()) {
+		t.Fatal("error")
+	}
+}
+
 func TestRDCSS(t *testing.T) {
 	control := uint64(0)
 	data := uint64(0)
