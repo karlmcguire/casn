@@ -4,16 +4,73 @@ import (
 	"unsafe"
 )
 
-type casnStatus byte
+type Update struct {
+	Address *uint64
+	Old     uint64
+	New     uint64
+}
+
+func CASN(updates []Update) bool {
+	return casn(&casnDescriptor{
+		status:  undecided,
+		entries: updates,
+	})
+}
 
 const (
-	undecided casnStatus = iota
+	undecided uint64 = iota
 	failed
 	succeeded
 )
 
 type casnDescriptor struct {
-	status casnStatus
+	status  uint64
+	entries []Update
+}
+
+func (d *casnDescriptor) ptr() uint64 {
+	return uint64(uintptr(unsafe.Pointer(d))) | 1<<62
+}
+
+func getCASNDescriptor(ptr uint64) *casnDescriptor {
+	return (*casnDescriptor)(unsafe.Pointer(uintptr(ptr &^ (1 << 62))))
+}
+
+func casn(cd *casnDescriptor) bool {
+	if cd.status == undecided {
+		status := succeeded
+		for i := 0; i < len(cd.entries) && status == succeeded; i++ {
+		retry:
+			entry := cd.entries[i]
+			val := rdcss(&rdcssDescriptor{
+				a1: &cd.status,
+				o1: undecided,
+				a2: entry.Address,
+				o2: entry.Old,
+				n2: cd.ptr(),
+			})
+			if isCASNDescriptor(val) {
+				if val != cd.ptr() {
+					casn(getCASNDescriptor(val))
+					goto retry
+				}
+			} else if val != entry.Old {
+				status = failed
+			}
+		}
+		cas(&cd.status, undecided, status)
+	}
+	success := cd.status == succeeded
+	for i := 0; i < len(cd.entries); i++ {
+		var new uint64
+		if success {
+			new = cd.entries[i].New
+		} else {
+			new = cd.entries[i].Old
+		}
+		cas(cd.entries[i].Address, cd.ptr(), new)
+	}
+	return success
 }
 
 type rdcssDescriptor struct {
