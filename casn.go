@@ -1,7 +1,6 @@
 package casn
 
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -95,26 +94,24 @@ func isRDCSSDescriptor(ptr uint64) bool {
 }
 
 func rdcss(d *rdcssDescriptor) uint64 {
-	r := d.ptr()
-	for isRDCSSDescriptor(r) {
+	o := d.ptr()
+	r := o
+	for {
 		r = cas(d.a2, d.o2, r)
 		if isRDCSSDescriptor(r) {
 			complete(r)
+		} else {
+			break
 		}
 	}
 	if r == d.o2 {
-		complete(d.ptr())
+		complete(o)
 	}
 	return r
 }
 
 func complete(ptr uint64) {
 	d := getRDCSSDescriptor(ptr)
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("%064b %v\n", ptr, d)
-		}
-	}()
 	if *d.a1 == d.o1 {
 		cas(d.a2, ptr, d.n2)
 	} else {

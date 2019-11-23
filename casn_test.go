@@ -1,7 +1,6 @@
 package casn
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -46,9 +45,6 @@ func TestRDCSS(t *testing.T) {
 
 func BenchmarkRDCSS(b *testing.B) {
 	data := []uint64{0, 0}
-	fmt.Printf("%v\n", &data[0])
-	fmt.Printf("%v\n", &data[1])
-	fmt.Println()
 	b.SetBytes(1)
 	for n := uint64(0); n < uint64(b.N); n++ {
 		rdcss(&rdcssDescriptor{
@@ -68,9 +64,9 @@ func BenchmarkRDCSSParallel(b *testing.B) {
 		for n := uint64(0); pb.Next(); n++ {
 			rdcss(&rdcssDescriptor{
 				a1: &data[0],
-				o1: 0,
+				o1: data[0],
 				a2: &data[1],
-				o2: n + 0,
+				o2: data[1],
 				n2: n + 1,
 			})
 		}
