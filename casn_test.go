@@ -59,16 +59,22 @@ func BenchmarkRDCSS(b *testing.B) {
 
 func BenchmarkRDCSSParallel(b *testing.B) {
 	data := []uint64{0, 0}
+	// the descriptors need to be defined outside of the parallel loop because
+	// they need to be shared across goroutines
+	desc := make([]*rdcssDescriptor, b.N)
+	for i := uint64(0); i < uint64(len(desc)); i++ {
+		desc[i] = &rdcssDescriptor{
+			a1: &data[0],
+			o1: 0,
+			a2: &data[1],
+			o2: i,
+			n2: i + 1,
+		}
+	}
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for n := uint64(0); pb.Next(); n++ {
-			rdcss(&rdcssDescriptor{
-				a1: &data[0],
-				o1: data[0],
-				a2: &data[1],
-				o2: data[1],
-				n2: n + 1,
-			})
+			rdcss(desc[n])
 		}
 	})
 }
