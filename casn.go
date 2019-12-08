@@ -40,15 +40,18 @@ func isCASNDescriptor(ptr uint64) bool {
 func casn(cd *casnDescriptor) bool {
 	if cd.status == undecided {
 		status := succeeded
+		descs := make([]*rdcssDescriptor, 0, cap(cd.updates))
 		for i := 0; i < len(cd.updates) && status == succeeded; i++ {
 		retry:
-			val := rdcss(&rdcssDescriptor{
+			desc := &rdcssDescriptor{
 				a1: &cd.status,
 				o1: undecided,
 				a2: cd.updates[i].Address,
 				o2: cd.updates[i].Old,
 				n2: cd.ptr(),
-			})
+			}
+			descs = append(descs, desc)
+			val := rdcss(desc)
 			if isCASNDescriptor(val) {
 				if val != cd.ptr() {
 					casn(getCASNDescriptor(val))
