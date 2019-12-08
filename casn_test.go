@@ -1,9 +1,12 @@
 package casn
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestRDCSSRead(t *testing.T) {
@@ -188,11 +191,57 @@ func BenchmarkCASParallel(b *testing.B) {
 	})
 }
 
+const (
+	V = 1024
+	M = V - 1
+	N = 4
+	P = 8
+)
+
 // BenchmarkEvaluation runs a benchmark most similar to the one found in the
 // original paper in order to get an idea of how closely we've followed the
 // correct implementation.
-//
-// TODO
-func BenchmarkEvaluation(b *testing.B) {
-	b.ReportMetric(1.00, "testing")
+func BenchmarkEvaluationCASN(b *testing.B) {
+	data := make([]uint64, V)
+	ctrl := make([]chan struct{}, P)
+	for i := range ctrl {
+		ctrl[i] = make(chan struct{})
+	}
+	for i := 0; i < P; i++ {
+		go func(a int) {
+			<-ctrl[a]
+			r := rand.Int()
+			for j := 0; j < V; j++ {
+				loc := []int{
+					((j + r) + ((V / P) * 0)) & M,
+					((j + r) + ((V / P) * 1)) & M,
+					((j + r) + ((V / P) * 2)) & M,
+					((j + r) + ((V / P) * 3)) & M,
+				}
+				old := []uint64{
+					CASNRead(&data[loc[0]]),
+					CASNRead(&data[loc[1]]),
+					CASNRead(&data[loc[2]]),
+					CASNRead(&data[loc[3]]),
+				}
+				CASN([]Update{
+					{&data[loc[0]], old[0], old[0] + 1},
+					{&data[loc[1]], old[1], old[1] + 1},
+					{&data[loc[2]], old[2], old[2] + 1},
+					{&data[loc[3]], old[3], old[3] + 1},
+				})
+			}
+			ctrl[a] <- struct{}{}
+		}(i)
+	}
+	start := time.Now()
+	for i := range ctrl {
+		ctrl[i] <- struct{}{}
+	}
+	for i := range ctrl {
+		<-ctrl[i]
+	}
+	duration := time.Since(start)
+	b.ReportMetric(float64(duration/(V*P)), "ns")
+	fmt.Println(data)
 }
