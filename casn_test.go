@@ -1,19 +1,22 @@
 package casn
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 )
 
-func TestCas(t *testing.T) {
-	num := uint64(0)
-	if old := cas(&num, 0, 1); old != 0 {
-		t.Fatal("Cas didn't swap")
+func TestRDCSSRead(t *testing.T) {
+	data := []uint64{0, 1}
+	desc := &rdcssDescriptor{
+		a1: &data[0],
+		o1: 0,
+		a2: &data[1],
+		o2: 1,
+		n2: 2,
 	}
-	if old := cas(&num, 2, 0); old != 1 {
-		t.Fatal("Cas shouldn't have swapped")
-	}
+	fmt.Println(rdcssRead(desc.ptr()))
 }
 
 func TestGetRDCSSDescriptor(t *testing.T) {
@@ -163,6 +166,16 @@ func BenchmarkCASNParallel(b *testing.B) {
 	})
 }
 
+func TestCas(t *testing.T) {
+	num := uint64(0)
+	if old := cas(&num, 0, 1); old != 0 {
+		t.Fatal("Cas didn't swap")
+	}
+	if old := cas(&num, 2, 0); old != 1 {
+		t.Fatal("Cas shouldn't have swapped")
+	}
+}
+
 func BenchmarkCAS(b *testing.B) {
 	data := uint64(0)
 	b.SetBytes(1)
@@ -180,3 +193,10 @@ func BenchmarkCASParallel(b *testing.B) {
 		}
 	})
 }
+
+// BenchmarkEvaluation runs a benchmark most similar to the one found in the
+// original paper in order to get an idea of how closely we've followed the
+// correct implementation.
+//
+// TODO
+func BenchmarkEvaluation(b *testing.B) {}

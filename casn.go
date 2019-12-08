@@ -113,8 +113,23 @@ func rdcss(d *rdcssDescriptor) uint64 {
 	return r
 }
 
+func rdcssRead(ptr uint64) uint64 {
+	var d uint64
+	for {
+		if isRDCSSDescriptor(d) {
+			complete(d)
+		} else {
+			break
+		}
+	}
+	return d
+}
+
 func complete(ptr uint64) {
-	d := getRDCSSDescriptor(ptr)
+	completeDescriptor(getRDCSSDescriptor(ptr), ptr)
+}
+
+func completeDescriptor(d *rdcssDescriptor, ptr uint64) {
 	if *d.a1 == d.o1 {
 		cas(d.a2, ptr, d.n2)
 	} else {
