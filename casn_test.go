@@ -1,6 +1,7 @@
 package casn
 
 import (
+	"sync/atomic"
 	"testing"
 )
 
@@ -59,16 +60,20 @@ func BenchmarkRDCSS(b *testing.B) {
 
 func BenchmarkRDCSSParallel(b *testing.B) {
 	data := []uint64{0, 0}
+	desc := make([]*rdcssDescriptor, b.N)
+	for i := uint64(0); i < uint64(b.N); i++ {
+		desc[i] = &rdcssDescriptor{
+			a1: &data[0],
+			o1: 0,
+			a2: &data[1],
+			o2: i + 0,
+			n2: i + 1,
+		}
+	}
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		for n := uint64(0); pb.Next(); n++ {
-			rdcss(&rdcssDescriptor{
-				a1: &data[0],
-				o1: 0,
-				a2: &data[1],
-				o2: n + 0,
-				n2: n + 1,
-			})
+			rdcss(desc[n])
 		}
 	})
 }
@@ -123,6 +128,24 @@ func BenchmarkCASNParallel(b *testing.B) {
 				{&data[2], n + 2, n + 3},
 				{&data[3], n + 3, n + 4},
 			})
+		}
+	})
+}
+
+func BenchmarkCAS(b *testing.B) {
+	data := uint64(0)
+	b.SetBytes(1)
+	for n := uint64(0); n < uint64(b.N); n++ {
+		atomic.CompareAndSwapUint64(&data, n, n+1)
+	}
+}
+
+func BenchmarkCASParallel(b *testing.B) {
+	data := uint64(0)
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for n := uint64(0); pb.Next(); n++ {
+			atomic.CompareAndSwapUint64(&data, n, n+1)
 		}
 	})
 }
