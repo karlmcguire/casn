@@ -1,6 +1,7 @@
 package casn
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -102,6 +103,36 @@ func TestCASN(t *testing.T) {
 	if data[0] != 1 || data[1] != 2 || data[2] != 3 || data[3] != 4 {
 		t.Fatal("CASN shouldn't have swapped values")
 	}
+}
+
+func BenchmarkMutex(b *testing.B) {
+	data := []uint64{0, 1, 2, 3}
+	mu := &sync.Mutex{}
+	b.SetBytes(4)
+	for n := uint64(0); n < uint64(b.N); n++ {
+		mu.Lock()
+		data[0] = n + 1
+		data[1] = n + 2
+		data[2] = n + 3
+		data[3] = n + 4
+		mu.Unlock()
+	}
+}
+
+func BenchmarkMutexParallel(b *testing.B) {
+	data := []uint64{0, 1, 2, 3}
+	mu := &sync.Mutex{}
+	b.SetBytes(4)
+	b.RunParallel(func(pb *testing.PB) {
+		for n := uint64(0); pb.Next(); n++ {
+			mu.Lock()
+			data[0] = n + 1
+			data[1] = n + 2
+			data[2] = n + 3
+			data[3] = n + 4
+			mu.Unlock()
+		}
+	})
 }
 
 func BenchmarkCASN(b *testing.B) {
