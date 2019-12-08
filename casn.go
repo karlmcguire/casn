@@ -1,6 +1,7 @@
 package casn
 
 import (
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -12,6 +13,10 @@ type Update struct {
 
 func CASN(updates []Update) bool {
 	return casn(&casnDescriptor{undecided, updates})
+}
+
+func CASNRead(addr *uint64) uint64 {
+	return casnRead(addr)
 }
 
 const (
@@ -43,15 +48,14 @@ func casn(cd *casnDescriptor) bool {
 		descs := make([]*rdcssDescriptor, 0, cap(cd.updates))
 		for i := 0; i < len(cd.updates) && status == succeeded; i++ {
 		retry:
-			desc := &rdcssDescriptor{
+			descs = append(descs, &rdcssDescriptor{
 				a1: &cd.status,
 				o1: undecided,
 				a2: cd.updates[i].Address,
 				o2: cd.updates[i].Old,
 				n2: cd.ptr(),
-			}
-			descs = append(descs, desc)
-			val := rdcss(desc)
+			})
+			val := rdcss(descs[i])
 			if isCASNDescriptor(val) {
 				if val != cd.ptr() {
 					casn(getCASNDescriptor(val))
@@ -76,6 +80,19 @@ func casn(cd *casnDescriptor) bool {
 	return success
 }
 
+func casnRead(addr *uint64) uint64 {
+	var r uint64
+	for {
+		r = atomic.LoadUint64(addr)
+		if isCASNDescriptor(r) {
+			casn(getCASNDescriptor(r))
+		} else {
+			break
+		}
+	}
+	return r
+}
+
 type rdcssDescriptor struct {
 	a1 *uint64
 	o1 uint64
@@ -97,28 +114,40 @@ func isRDCSSDescriptor(ptr uint64) bool {
 }
 
 func rdcss(d *rdcssDescriptor) uint64 {
-	o := d.ptr()
-	r := o
+	var r uint64
 	for {
-		r = cas(d.a2, d.o2, r)
+		r = cas(d.a2, d.o2, d.ptr())
 		if isRDCSSDescriptor(r) {
-			complete(r)
+			complete(getRDCSSDescriptor(r))
 		} else {
 			break
 		}
 	}
 	if r == d.o2 {
-		complete(o)
+		complete(d)
 	}
 	return r
 }
 
-func complete(ptr uint64) {
-	d := getRDCSSDescriptor(ptr)
-	if *d.a1 == d.o1 {
-		cas(d.a2, ptr, d.n2)
+func rdcssRead(addr *uint64) uint64 {
+	var r uint64
+	for {
+		r = atomic.LoadUint64(addr)
+		if isRDCSSDescriptor(r) {
+			complete(getRDCSSDescriptor(r))
+		} else {
+			break
+		}
+	}
+	return r
+}
+
+func complete(d *rdcssDescriptor) {
+	a1 := atomic.LoadUint64(d.a1)
+	if a1 == d.o1 {
+		cas(d.a2, d.ptr(), d.n2)
 	} else {
-		cas(d.a2, ptr, d.o2)
+		cas(d.a2, d.ptr(), d.o2)
 	}
 }
 
