@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func TestRDCSSRead(t *testing.T) {
+	data := []uint64{1, 2}
+	if rdcssRead(&data[0]) != 1 || rdcssRead(&data[1]) != 2 {
+		t.Fatal("rdcssRead returning wrong values")
+	}
+}
+
 func TestGetRDCSSDescriptor(t *testing.T) {
 	data := []uint64{0, 0}
 	d := &rdcssDescriptor{
